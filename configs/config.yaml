@@ -1,0 +1,7 @@
+training:
+  epoch:
+  batch_size:
+  learning_rate:
+  weight_decay:
+  device:
+
