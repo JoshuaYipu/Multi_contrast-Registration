@@ -142,3 +142,22 @@ class AffineNet(nn.Module):
         warped_src = self.bilinear_interp(src, affine_param)
 
         return warped_src, affine_param
+    
+
+if __name__ == "__main__":
+    # 测试灰度模式
+    model_gray = AffineNet(input_mode='gray', input_size=(256, 256))
+    src = torch.randn(2, 1, 256, 256)
+    tgt = torch.randn(2, 1, 256, 256)
+    warped, params = model_gray(src, tgt)
+    print("Gray mode:", warped.shape, params.shape)
+
+    # 测试 RGB 模式
+    model_rgb = AffineNet(input_mode='rgb', input_size=(512, 512), base_channels=32)
+    src = torch.randn(1, 3, 512, 512)
+    tgt = torch.randn(1, 3, 512, 512)
+    warped, params = model_rgb(src, tgt)
+    print("RGB mode:", warped.shape, params.shape)
+
+    # 打印模型配置（验证 extra_repr）
+    print(model_rgb)
