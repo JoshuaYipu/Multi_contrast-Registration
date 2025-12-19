@@ -1,6 +1,7 @@
 import yaml
 import torch
 import torch.nn as nn
+import torch.optim as optim
 from torchvision import models
 import os
 import time
@@ -40,7 +41,9 @@ def main():
         input_mode = input_mode,
         input_size = input_size
     )
-    print(model)
+    model.to(device)
+    # 定义优化器
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
 if __name__ == "__main__" :
     main()
