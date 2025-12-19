@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 # ----------------------------
-# 辅助函数：Dice 系数
+# 辅助函数：Dice 系数，是Squared Dice，L2范数平方
 # ----------------------------
 def dice_coef(y_true: torch.Tensor, y_pred: torch.Tensor, smooth: float = 1.0) -> torch.Tensor:
     """
@@ -36,7 +36,7 @@ def residual_loss(y_pred: torch.Tensor) -> torch.Tensor:
 
 
 # ----------------------------
-# 梯度计算（模拟 K.gradient）
+# 梯度计算，计算输入图像张量的空间梯度幅值（gradient magnitude），采用中心差分法
 # ----------------------------
 def compute_gradient(img: torch.Tensor) -> torch.Tensor:
     """
@@ -84,10 +84,12 @@ def mutual_information(y_true: torch.Tensor, y_pred: torch.Tensor,
     dtype = y_true.dtype
 
     # Clip to [0, 1]
+    # 注意：真实标签或者预测数据应该先归一化
     y_true = torch.clamp(y_true, 0, 1)
     y_pred = torch.clamp(y_pred, 0, 1)
 
     # Bin centers
+    # 用parzen窗（高斯核）估计边缘/联合概率分布，进而计算MI
     bin_centers = torch.linspace(0, 1, bins, device=device, dtype=dtype)  # (bins,)
     sigma = torch.mean(torch.diff(bin_centers)) * sigma_ratio
     preterm = 1.0 / (2.0 * sigma ** 2)
