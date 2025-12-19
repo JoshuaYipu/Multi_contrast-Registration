@@ -7,5 +7,6 @@ training:
   input_mode: 'gray' # 可选'gray'或者'rgb'
   input_size: [512,512]
   base_channels: 8 # 网络宽度。值越大，网络规模越大。
+  dataset_path: data/grey_raw
   mean: [0.3278]
   std: [0.2223]

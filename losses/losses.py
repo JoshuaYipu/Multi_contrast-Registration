@@ -77,7 +77,7 @@ def local_mean(img: torch.Tensor, win_size: int = 9) -> torch.Tensor:
 
 def mutual_information(y_true: torch.Tensor, y_pred: torch.Tensor,
                        bins: int = 100, sigma_ratio: float = 1.0,
-                       mean: float = 0.5, std: float = 0.5) -> torch.Tensor:
+                       mean: float = 0.0, std: float = 1.0) -> torch.Tensor:
     """
     Estimate Mutual Information between two images using Parzen windowing.
     Assumes inputs are already cropped to foreground (no pure background).

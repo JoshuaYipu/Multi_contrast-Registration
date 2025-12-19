@@ -7,12 +7,14 @@ import os
 import yaml
 
 class FundusImageDataset(Dataset):
-    def __init__(self, root_dir: str, config_path: str ='configs/config.yaml',mode: str = 'gray',standard_size=(512,512)):
+    def __init__(self, root_dir: str, mean: float = 0.0, std: float = 1.0, 
+                 mode: str = 'gray',standard_size=(512,512)):
         """
         __init__ 的 Docstring
         初始化数据集
         :param root_dir: 数据集根目录
-        :param config_patch: mean 和 std 等数据的保存位置，由compute_mean_std_with_roi.py脚本计算
+        :param mean
+        :param std
         :param input_size: 输入图像尺寸
         :param mode: 'gray' or 'rgb'
         """
@@ -20,12 +22,8 @@ class FundusImageDataset(Dataset):
         self.root_dir = root_dir
         self.standard_size = standard_size
         self.mode = mode
-
-        with open(config_path,'r') as f :
-            config = yaml.safe_load(f)
-
-        self.mean = config['training']['mean']
-        self.std = config['training']['mean']
+        self.mean = mean
+        self.std = std
 
         # 构建移动图像和固定图像的路径
         self.dir_A = os.path.join(root_dir, 'A')
