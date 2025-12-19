@@ -74,53 +74,23 @@ def local_mean(img: torch.Tensor, win_size: int = 9) -> torch.Tensor:
 # ----------------------------
 # 删除了crop_ground部分，强制走else
 # 但是需要在数据处理阶段对每张图像进行ROI裁剪，以达到crop_ground的效果
-# 示例数据处理代码：
-# def crop_to_foreground(image, margin=10):
-#     """
-#     image: (C, H, W) or (H, W), values in [0, 1]
-#     Returns: cropped image with minimal background
-#     """
-#     if image.ndim == 3:
-#         # 找非零区域（假设前景 > 0）
-#         mask = image.sum(dim=0) > 1e-6  # (H, W)
-#     else:
-#         mask = image > 1e-6
 
-#     if mask.sum() == 0:
-#         return image  # 全黑，不裁剪
-
-#     # 获取 bounding box
-#     nz = torch.nonzero(mask, as_tuple=False)
-#     h_min, w_min = nz.min(dim=0).values
-#     h_max, w_max = nz.max(dim=0).values
-
-#     # 加 margin
-#     h_min = max(0, h_min - margin)
-#     w_min = max(0, w_min - margin)
-#     h_max = min(image.shape[-2], h_max + margin)
-#     w_max = min(image.shape[-1], w_max + margin)
-
-#     if image.ndim == 3:
-#         return image[:, h_min:h_max, w_min:w_max]
-#     else:
-#         return image[h_min:h_max, w_min:w_max]
 def mutual_information(y_true: torch.Tensor, y_pred: torch.Tensor,
                        bins: int = 100, sigma_ratio: float = 1.0,
                        mean: float = 0.5, std: float = 0.5) -> torch.Tensor:
     """
     Estimate Mutual Information between two images using Parzen windowing.
     Assumes inputs are already cropped to foreground (no pure background).
-    Inputs must be in [0, 1].
+    
     Returns: scalar tensor (mean MI over batch, negative for minimization)
     """
     device = y_true.device
     dtype = y_true.dtype
 
-    y_true = torch.clamp(y_true, 0, 1)
-    y_pred = torch.clamp(y_pred, 0, 1)
-
     # Bin centers
-    bin_centers = torch.linspace(mean - 3 * std, mean + 3 * std, bins, device=device, dtype=dtype)
+    bin_min = mean - 3 * std
+    bin_max = mean + 3 * std
+    bin_centers = torch.linspace(bin_min, bin_max, bins, device=device, dtype=dtype)
     sigma = torch.mean(torch.diff(bin_centers)) * sigma_ratio
     preterm = 1.0 / (2.0 * sigma ** 2)
 
@@ -156,11 +126,14 @@ def mutual_information(y_true: torch.Tensor, y_pred: torch.Tensor,
 # ----------------------------
 class DesignLoss:
     def __init__(self, parameter: float = 1.0, parameter_mi: float = 1.0,
-                 win: int = 9, jl_thresh: float = 0.1):
+                 win: int = 9, jl_thresh: float = 0.1,
+                 mean: float = 0.0, std: float = 1.0):
         self.parameter = parameter
         self.parameter_mi = parameter_mi
         self.win = win
         self.jl_thresh = jl_thresh
+        self.mean = mean
+        self.std = std
 
     def _clip_mask(self, y_true: torch.Tensor) -> torch.Tensor:
         """Create binary mask by thresholding and rounding."""
@@ -179,14 +152,16 @@ class DesignLoss:
 
         eps = 1e-8
         mse_part = self.parameter * mse_loss(y_true_bg, y_pred_bg + eps)
-        mi_part = self.parameter_mi * mutual_information(y_true, y_pred)
+        mi_part = self.parameter_mi * mutual_information(y_true, y_pred, 
+                                                         mean=self.mean, std=self.std)
 
         return mse_part + mi_part
 
     # 可选：其他损失（按需启用）
-    def mi_gl2(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
+    def mi_gl2(self, y_true: torch.Tensor, y_pred: torch.Tensor,
+                   mean: float, std: float) -> torch.Tensor:
         grad_true = torch.sigmoid(compute_gradient(y_true))
         grad_pred = torch.sigmoid(compute_gradient(y_pred))
         l2_grad = mse_loss(grad_true, grad_pred)
-        mi_img = mutual_information(y_true, y_pred)
+        mi_img = mutual_information(y_true, y_pred, mean=self.mean, std=self.std)
         return self.parameter * l2_grad + self.parameter_mi * mi_img

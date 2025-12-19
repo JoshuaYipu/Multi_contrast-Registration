@@ -7,7 +7,7 @@ import os
 import yaml
 
 class FundusImageDataset(Dataset):
-    def __init__(self, root_dir: str, config_path: str ='configs/config.yaml',standard_size=(512,512)):
+    def __init__(self, root_dir: str, config_path: str ='configs/config.yaml',mode: str = 'gray',standard_size=(512,512)):
         """
         __init__ 的 Docstring
         初始化数据集
@@ -19,6 +19,7 @@ class FundusImageDataset(Dataset):
 
         self.root_dir = root_dir
         self.standard_size = standard_size
+        self.mode = mode
 
         with open(config_path,'r') as f :
             config = yaml.safe_load(f)
@@ -58,8 +59,8 @@ class FundusImageDataset(Dataset):
         path_A = os.path.join(self.dir_A, filename)
         path_B = os.path.join(self.dir_B, filename)
 
-        img_A = Image.open(path_A).convert('L')
-        img_B = Image.open(path_B).convert('L')
+        img_A = Image.open(path_A).convert('L' if self.mode == 'gray' else 'rgb')
+        img_B = Image.open(path_B).convert('L' if self.mode == 'gray' else 'rgb')
 
         # 应用transform变换
         src = self.transform(img_A)
