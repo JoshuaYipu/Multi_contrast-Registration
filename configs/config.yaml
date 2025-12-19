@@ -4,6 +4,8 @@ training:
   learning_rate: 0.0001
   weight_decay: 0.0005
   affine_weight_path: experiments/affine_weight
-  input_mode: 'rgb' # 可选'gray'或者'rgb'
+  input_mode: 'gray' # 可选'gray'或者'rgb'
   input_size: [512,512]
   base_channels: 8 # 网络宽度。值越大，网络规模越大。
+  mean: [0.3278]
+  std: [0.2223]
