@@ -72,72 +72,85 @@ def local_mean(img: torch.Tensor, win_size: int = 9) -> torch.Tensor:
 # ----------------------------
 # 互信息（MI）估计（Parzen windowing with Gaussian kernel）
 # ----------------------------
+# 删除了crop_ground部分，强制走else
+# 但是需要在数据处理阶段对每张图像进行ROI裁剪，以达到crop_ground的效果
+# 示例数据处理代码：
+# def crop_to_foreground(image, margin=10):
+#     """
+#     image: (C, H, W) or (H, W), values in [0, 1]
+#     Returns: cropped image with minimal background
+#     """
+#     if image.ndim == 3:
+#         # 找非零区域（假设前景 > 0）
+#         mask = image.sum(dim=0) > 1e-6  # (H, W)
+#     else:
+#         mask = image > 1e-6
+
+#     if mask.sum() == 0:
+#         return image  # 全黑，不裁剪
+
+#     # 获取 bounding box
+#     nz = torch.nonzero(mask, as_tuple=False)
+#     h_min, w_min = nz.min(dim=0).values
+#     h_max, w_max = nz.max(dim=0).values
+
+#     # 加 margin
+#     h_min = max(0, h_min - margin)
+#     w_min = max(0, w_min - margin)
+#     h_max = min(image.shape[-2], h_max + margin)
+#     w_max = min(image.shape[-1], w_max + margin)
+
+#     if image.ndim == 3:
+#         return image[:, h_min:h_max, w_min:w_max]
+#     else:
+#         return image[h_min:h_max, w_min:w_max]
 def mutual_information(y_true: torch.Tensor, y_pred: torch.Tensor,
                        bins: int = 100, sigma_ratio: float = 1.0,
+                       # crop_background 和 thresh 参数可保留但不使用，或直接删除
                        crop_background: bool = False, thresh: float = 0.0001) -> torch.Tensor:
     """
     Estimate Mutual Information between two images using Parzen windowing.
-    Assumes inputs in [0, 1].
-    Returns: scalar tensor (mean over batch)
+    Assumes inputs are already cropped to foreground (no pure background).
+    Inputs must be in [0, 1].
+    Returns: scalar tensor (mean MI over batch, negative for minimization)
     """
     device = y_true.device
     dtype = y_true.dtype
 
-    # Clip to [0, 1]
-    # 注意：真实标签或者预测数据应该先归一化
     y_true = torch.clamp(y_true, 0, 1)
     y_pred = torch.clamp(y_pred, 0, 1)
 
     # Bin centers
-    # 用parzen窗（高斯核）估计边缘/联合概率分布，进而计算MI
-    bin_centers = torch.linspace(0, 1, bins, device=device, dtype=dtype)  # (bins,)
+    bin_centers = torch.linspace(0, 1, bins, device=device, dtype=dtype)
     sigma = torch.mean(torch.diff(bin_centers)) * sigma_ratio
     preterm = 1.0 / (2.0 * sigma ** 2)
 
-    if crop_background:
-        # Simple foreground mask (not batch-dynamic friendly, but kept for compatibility)
-        mask = (y_true > thresh) | (y_pred > thresh)  # (B, C, H, W)
-        y_true_fg = y_true[mask]
-        y_pred_fg = y_pred[mask]
-        # Add fake batch and channel dims for compatibility
-        y_true = y_true_fg.view(1, -1, 1)
-        y_pred = y_pred_fg.view(1, -1, 1)
-    else:
-        # Flatten spatial dims: (B, C, H, W) -> (B, N, 1)
-        B, C, H, W = y_true.shape
-        N = H * W * C
-        y_true = y_true.view(B, N, 1)
-        y_pred = y_pred.view(B, N, 1)
+    # Always flatten spatial dims: (B, C, H, W) -> (B, N, 1)
+    B, C, H, W = y_true.shape
+    N = H * W * C
+    y_true = y_true.view(B, N, 1)
+    y_pred = y_pred.view(B, N, 1)
 
-    nb_voxels = y_pred.shape[1]  # N
+    nb_voxels = N  # 注意：这里用原始 N，不是动态值
 
-    # Reshape bin centers: (1, 1, bins)
     vbc = bin_centers.view(1, 1, bins)
 
-    # Compute Parzen window densities
-    I_a = torch.exp(-preterm * (y_true - vbc) ** 2)  # (B, N, bins)
+    I_a = torch.exp(-preterm * (y_true - vbc) ** 2)
     I_a = I_a / (I_a.sum(dim=-1, keepdim=True) + 1e-8)
 
     I_b = torch.exp(-preterm * (y_pred - vbc) ** 2)
     I_b = I_b / (I_b.sum(dim=-1, keepdim=True) + 1e-8)
 
-    # Joint probability pab: (B, bins, bins)
-    I_a_permute = I_a.permute(0, 2, 1)  # (B, bins, N)
-    pab = torch.bmm(I_a_permute, I_b)   # (B, bins, bins)
-    pab = pab / nb_voxels
+    I_a_permute = I_a.permute(0, 2, 1)
+    pab = torch.bmm(I_a_permute, I_b) / nb_voxels
 
-    # Marginals
-    pa = I_a.mean(dim=1, keepdim=True)  # (B, 1, bins)
-    pb = I_b.mean(dim=1, keepdim=True)  # (B, 1, bins)
+    pa = I_a.mean(dim=1, keepdim=True)
+    pb = I_b.mean(dim=1, keepdim=True)
+    papb = torch.bmm(pa.permute(0, 2, 1), pb) + 1e-8
 
-    papb = torch.bmm(pa.permute(0, 2, 1), pb) + 1e-8  # (B, bins, bins)
-
-    # MI = sum(pab * log(pab / papb))
     mi = pab * torch.log(pab / papb + 1e-8)
-    mi = mi.sum(dim=(1, 2))  # (B,)
-
-    return -mi.mean()  # Negative because we minimize loss
-
+    mi = mi.sum(dim=(1, 2))
+    return -mi.mean()
 
 # ----------------------------
 # 自定义损失类（对应 design_loss）
@@ -152,9 +165,7 @@ class DesignLoss:
 
     def _clip_mask(self, y_true: torch.Tensor) -> torch.Tensor:
         """Create binary mask by thresholding and rounding."""
-        clipped = torch.clamp(y_true, 0.0, self.jl_thresh * 2)
-        rounded = torch.round(clipped / (self.jl_thresh * 2))
-        return rounded  # 0 or 1
+        return (y_true > self.jl_thresh).float()
 
     def mi_clipmse(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         """
@@ -167,7 +178,8 @@ class DesignLoss:
         y_true_bg = background_mask * y_true
         y_pred_bg = background_mask * y_pred
 
-        mse_part = self.parameter * mse_loss(y_true_bg, y_pred_bg)
+        eps = 1e-8
+        mse_part = self.parameter * mse_loss(y_true_bg, y_pred_bg + eps)
         mi_part = self.parameter_mi * mutual_information(y_true, y_pred)
 
         return mse_part + mi_part
