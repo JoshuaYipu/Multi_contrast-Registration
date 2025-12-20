@@ -126,7 +126,7 @@ def mutual_information(y_true: torch.Tensor, y_pred: torch.Tensor,
 # ----------------------------
 class DesignLoss:
     def __init__(self, parameter: float = 1.0, parameter_mi: float = 1.0,
-                 win: int = 9, jl_thresh_mode: str = 'adaptive',jl_thresh_fixed: float = 0.1,
+                 win: int = 9, jl_thresh_mode: str = 'adaptive', jl_thresh_fixed: float = 0.1,
                  mean: float = 0.0, std: float = 1.0):
         self.parameter = parameter
         self.parameter_mi = parameter_mi

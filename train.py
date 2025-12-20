@@ -44,7 +44,7 @@ def main():
     mean = training_cfg['mean']
     std = training_cfg['std']
     jl_thresh_mode = training_cfg['jl_thresh_mode']
-    log_base = training_cfg['log_dir']
+    
 
     # 定义训练集、验证集、测试集，并加载到加载器中
     train_dataset = FundusImageDataset(
@@ -57,15 +57,10 @@ def main():
         mean = mean, std = std,
         standard_size = tuple(input_size)
     )
-    test_dataset = FundusImageDataset(
-        root_dir = os.path.join(dataset_path, 'test'),
-        mean = mean, std = std,
-        standard_size = tuple(input_size)
-    )
+    
 
     train_loader = DataLoader(train_dataset, batch_size = batch_size, shuffle = True)
     val_loader = DataLoader(val_dataset, batch_size = batch_size, shuffle = False)
-    test_loader = DataLoader(test_dataset, batch_size = batch_size, shuffle = False)
     
     # 记录实验参数，保存实验结果路径
     current_exp_dir = record_info.record_experiment_info(affine_weight_path)
@@ -73,7 +68,7 @@ def main():
     print(f"🔔Starting new experiment:{current_exp_dir}")
 
     # 设置日志文件
-    log_file_path = record_info.setup_log_dir(log_base, experiment_id)
+    log_file_path = os.path.join(current_exp_dir, "train.log")
     tee_logger = record_info.TeeLogger(log_file_path)
     sys.stdout = tee_logger
     sys.stderr = tee_logger
@@ -82,7 +77,7 @@ def main():
 
     # 保存本次实验的配置日志
     log_config = {
-        'experiment_id': int(os.path.basename(current_exp_dir).split('_')[-1]),
+        'experiment_id': experiment_id,
         'epochs': epochs,
         'learning_rate': lr,
         'batch_size': batch_size,
@@ -94,10 +89,9 @@ def main():
         'mean': mean,
         'std': std,
         'jl_thresh_mode': jl_thresh_mode,
-        'log_dir': log_base,
         'timestamp': time.strftime("%Y-%m-%d %H:%M:%S")
     }
-    log_path = os.path.join(current_exp_dir, 'train_config.yaml')
+    log_path = os.path.join(current_exp_dir,  'train_config.yaml')
     with open(log_path, 'w', encoding='utf-8') as f:
         yaml.dump(log_config, f, default_flow_style=False, indent=4, allow_unicode=True)
     print(f"📝 Saved config to {log_path}")
@@ -119,8 +113,14 @@ def main():
         ).mi_clipmse
     best_val_loss = float('inf')
 
+    # 创建metrix表格，保存训练损失等数据
+    metrics_path = os.path.join(current_exp_dir, 'metrics.csv')
+    with open(metrics_path, 'w', encoding='utf-8') as f:
+        f.write("epoch,train_loss,val_loss,epoch_time_sec\n")
+
     try:
         for epoch in range(epochs):
+            epoch_start_time = time.time()
             print(f"\nEpoch {epoch+1}/{epochs}")
             print("-" * 30)
 
@@ -154,7 +154,13 @@ def main():
                     val_loss += loss_val.item()
                     val_bar.set_postfix({'val_loss': f"{loss_val.item():.6f}"})
             avg_val_loss = val_loss / len(val_loader)
+            epoch_time = time.time() - epoch_start_time
             print(f"Val Loss:{avg_val_loss:.6f}")
+            print(f"Epoch Time:{epoch_time:.2f} seconds")
+
+            # ----------------保存指标到csv-----------------
+            with open(metrics_path, 'a', encoding='utf-8') as f:
+                f.write(f"{epoch+1},{avg_train_loss:.6f},{avg_val_loss:.6f},{epoch_time:.2f}\n")
 
             # ----------------保存最佳模型-----------------
             if avg_val_loss < best_val_loss:
@@ -167,12 +173,12 @@ def main():
                     'val_loss': avg_val_loss,
                 }, save_path)
                 print(f"Saved best model to {save_path}")
-            pass
     finally:
         # 恢复stdout，关闭日志文件
-        sys.stdout = tee_logger.stdout
+        sys.stdout = sys.__stdout__
         tee_logger.close()
         print(f"\n Training finished. Log saved to {log_file_path}")
+        print(f"Metrics saved to {metrics_path}")
 
 
 if __name__ == "__main__" :

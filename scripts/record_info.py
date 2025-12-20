@@ -43,12 +43,3 @@ def record_experiment_info(base_dir: str) -> str:
     os.makedirs(exp_dir, exist_ok=False)  # 确保不覆盖已有目录
     return exp_dir
 
-
-def setup_log_dir(logs_base: str, experiment_id: int) -> str:
-    """
-    创建 logs/affine_train/experiment_{id} 目录，并返回 train.log 路径。
-    """
-    log_exp_dir = os.path.join(logs_base, f"experiment_{experiment_id}")
-    os.makedirs(log_exp_dir, exist_ok=True)
-    log_file = os.path.join(log_exp_dir, "train.log")
-    return log_file
