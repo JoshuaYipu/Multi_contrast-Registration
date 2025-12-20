@@ -44,6 +44,8 @@ def main():
     mean = training_cfg['mean']
     std = training_cfg['std']
     jl_thresh_mode = training_cfg['jl_thresh_mode']
+    patience = training_cfg['patience']
+    min_delta = training_cfg['min_delta']
     
 
     # 定义训练集、验证集、测试集，并加载到加载器中
@@ -112,6 +114,7 @@ def main():
         jl_thresh_mode = jl_thresh_mode
         ).mi_clipmse
     best_val_loss = float('inf')
+    trigger_times = 0
 
     # 创建metrix表格，保存训练损失等数据
     metrics_path = os.path.join(current_exp_dir, 'metrics.csv')
@@ -163,8 +166,10 @@ def main():
                 f.write(f"{epoch+1},{avg_train_loss:.6f},{avg_val_loss:.6f},{epoch_time:.2f}\n")
 
             # ----------------保存最佳模型-----------------
-            if avg_val_loss < best_val_loss:
+            if avg_val_loss < best_val_loss - min_delta:
+                # 显著改进
                 best_val_loss = avg_val_loss
+                trigger_times = 0 # 重置计数器
                 save_path = os.path.join(current_exp_dir, f"best_model_epoch{epoch+1}.pth")
                 torch.save({
                     'epoch': epoch,
@@ -173,6 +178,15 @@ def main():
                     'val_loss': avg_val_loss,
                 }, save_path)
                 print(f"Saved best model to {save_path}")
+            else:
+                # 未显著改进
+                trigger_times += 1
+                print(f"No improvement for {trigger_times}/{patience} epochs")
+
+            # ----------------判断是否早停-----------------
+            if trigger_times >= patience :
+                print(f"Early stopping triggered at epoch {epoch+1}")
+                break
     finally:
         # 恢复stdout，关闭日志文件
         sys.stdout = sys.__stdout__
