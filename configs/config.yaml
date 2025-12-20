@@ -11,3 +11,5 @@ training:
   mean: 0.3278
   std: 0.2223
   jl_thresh_mode: "percentile_80" # 可选策略：percentile_80, mean_plus_std, median_plus_mad
+  patience: 20
+  min_delta: 1e-3
