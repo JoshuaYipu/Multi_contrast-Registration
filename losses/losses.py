@@ -126,18 +126,58 @@ def mutual_information(y_true: torch.Tensor, y_pred: torch.Tensor,
 # ----------------------------
 class DesignLoss:
     def __init__(self, parameter: float = 1.0, parameter_mi: float = 1.0,
-                 win: int = 9, jl_thresh: float = 0.1,
+                 win: int = 9, jl_thresh_mode: str = 'adaptive',jl_thresh_fixed: float = 0.1,
                  mean: float = 0.0, std: float = 1.0):
         self.parameter = parameter
         self.parameter_mi = parameter_mi
         self.win = win
-        self.jl_thresh = jl_thresh
+        self.jl_thresh_mode = jl_thresh_mode
+        self.jl_thresh_fixed = jl_thresh_fixed
         self.mean = mean
         self.std = std
+    
+    def _compute_thresh(self, y_true: torch.Tensor) -> float:
+        """
+        动态计算掩码阈值
+        可选策略：
+          - median + 0.5 * mad
+          - mean + 1.0 * std (of current batch)
+          - percentile (e.g., 80th)
+        """
+        with torch.no_grad():
+            # 展平所有非-batch维度
+            flat = y_true.view(y_true.size(0), -1)  # (B, N)
+
+            if self.jl_thresh_mode == 'percentile_80':
+                # 使用80%分位数（适合前景占比较小的情况）
+                thresh = torch.quantile(flat, 0.8, dim=1, keepdim=True)  # (B, 1)
+                return thresh.view(-1, 1, 1, 1)  # 扩展回 (B,1,1,1) 便于广播
+
+            elif self.jl_thresh_mode == 'mean_plus_std':
+                # 均值 + 1倍标准差
+                mu = flat.mean(dim=1, keepdim=True)
+                sigma = flat.std(dim=1, keepdim=True)
+                thresh = mu + sigma
+                return thresh.view(-1, 1, 1, 1)
+
+            elif self.jl_thresh_mode == 'median_plus_mad':
+                # 更鲁棒：中位数 + MAD（中位数绝对偏差）
+                med = flat.median(dim=1, keepdim=True).values
+                mad = (flat - med).abs().median(dim=1, keepdim=True).values
+                thresh = med + mad
+                return thresh.view(-1, 1, 1, 1)
+
+            else:  # fallback to fixed
+                return self.jl_thresh_fixed            
 
     def _clip_mask(self, y_true: torch.Tensor) -> torch.Tensor:
-        """Create binary mask by thresholding and rounding."""
-        return (y_true > self.jl_thresh).float()
+        """Create binary mask using dynamic or fixed threshold."""
+        if self.jl_thresh_mode == 'fixed':
+            thresh = self.jl_thresh_fixed
+        else:
+            thresh = self._compute_thresh(y_true)
+
+        return (y_true > thresh).float()
 
     def mi_clipmse(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         """
