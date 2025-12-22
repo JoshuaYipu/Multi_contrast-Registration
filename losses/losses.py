@@ -190,8 +190,7 @@ class DesignLoss:
         y_true_bg = background_mask * y_true
         y_pred_bg = background_mask * y_pred
 
-        eps = 1e-8
-        mse_part = self.parameter * mse_loss(y_true_bg, y_pred_bg + eps)
+        mse_part = self.parameter * mse_loss(y_true_bg, y_pred_bg)
         mi_part = self.parameter_mi * mutual_information(y_true, y_pred, 
                                                          mean=self.mean, std=self.std)
 
