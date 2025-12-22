@@ -13,7 +13,7 @@ from losses import losses
 from datasets.dataset import FundusImageDataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from scripts import record_info
+from scripts import record_info,plot
 import sys
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -193,6 +193,7 @@ def main():
         tee_logger.close()
         print(f"\n Training finished. Log saved to {log_file_path}")
         print(f"Metrics saved to {metrics_path}")
+        plot.draw(metrics_path)
 
 
 if __name__ == "__main__" :
