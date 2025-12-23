@@ -181,20 +181,13 @@ class DesignLoss:
 
     def mi_clipmse(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         """
-        Combined loss: MSE on background + MI on full image.
+        Delete clipmse.Only MI criterion to constraint model.
         """
-        mask = self._clip_mask(y_true)  # foreground mask (1 = foreground)
-        background_mask = 1.0 - mask
-
-        # Apply mask to both true and pred
-        y_true_bg = background_mask * y_true
-        y_pred_bg = background_mask * y_pred
-
-        mse_part = self.parameter * mse_loss(y_true_bg, y_pred_bg)
+        
         mi_part = self.parameter_mi * mutual_information(y_true, y_pred, 
                                                          mean=self.mean, std=self.std)
 
-        return mse_part + mi_part
+        return mi_part
 
     # 可选：其他损失（按需启用）
     def mi_gl2(self, y_true: torch.Tensor, y_pred: torch.Tensor,

@@ -1,13 +1,13 @@
 training:
   epochs: 100
-  batch_size: 16
+  batch_size: 8
   learning_rate: 0.0001
   weight_decay: 0.0005
-  affine_weight_path: experiments/affine_train
+  affine_weight_path: 'experiments/affine_train'
   input_mode: 'gray' # 可选'gray'或者'rgb'
   input_size: [512,512]
   base_channels: 8 # 网络宽度。值越大，网络规模越大。
-  dataset_path: data/gray_raw
+  dataset_path: 'data/gray_raw'
   mean: 0.3278
   std: 0.2223
   jl_thresh_mode: "percentile_80" # 可选策略：percentile_80, mean_plus_std, median_plus_mad
