@@ -91,6 +91,8 @@ def main():
         'mean': mean,
         'std': std,
         'jl_thresh_mode': jl_thresh_mode,
+        'patience': patience,
+        'min_delta': min_delta,
         'timestamp': time.strftime("%Y-%m-%d %H:%M:%S")
     }
     log_path = os.path.join(current_exp_dir,  'train_config.yaml')
