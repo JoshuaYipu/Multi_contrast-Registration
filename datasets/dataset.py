@@ -7,27 +7,24 @@ import os
 import yaml
 
 class FundusImageDataset(Dataset):
-    def __init__(self, root_dir: str, mean: float = 0.0, std: float = 1.0, 
-                 mode: str = 'gray',standard_size=(512,512)):
+    def __init__(self, root_dir: str, mean: float = 0.0, std: float = 1.0, standard_size=512):
         """
         __init__ 的 Docstring
         初始化数据集
         :param root_dir: 数据集根目录
         :param mean
         :param std
-        :param input_size: 输入图像尺寸
-        :param mode: 'gray' or 'rgb'
+        :param standard_size: 输入图像的标准大小，默认为512，表示输入图像将被调整为(standard_size, standard_size)
         """
 
         self.root_dir = root_dir
         self.standard_size = standard_size
-        self.mode = mode
         self.mean = mean
         self.std = std
 
         # 构建移动图像和固定图像的路径
-        self.dir_A = os.path.join(root_dir, 'A')
-        self.dir_B = os.path.join(root_dir, 'B')
+        self.dir_A = os.path.join(root_dir, 'A') # 移动图像
+        self.dir_B = os.path.join(root_dir, 'B') # 固定图像
 
         # 获取所有图像名
         self.filenames = sorted(
@@ -38,7 +35,7 @@ class FundusImageDataset(Dataset):
         filenames_b = set(os.listdir(self.dir_B))
         assert all(f in filenames_b for f in self.filenames), "A和B中的文件名不匹配！"
 
-        # 定义归一化变换：将原始图像[0,255]uint8 -> [0,1]float32
+        # 图像预处理流水线
         self.transform = transforms.Compose([
             transforms.Resize(standard_size),
             transforms.CenterCrop(standard_size),
@@ -57,8 +54,8 @@ class FundusImageDataset(Dataset):
         path_A = os.path.join(self.dir_A, filename)
         path_B = os.path.join(self.dir_B, filename)
 
-        img_A = Image.open(path_A).convert('L' if self.mode == 'gray' else 'rgb')
-        img_B = Image.open(path_B).convert('L' if self.mode == 'gray' else 'rgb')
+        img_A = Image.open(path_A).convert('L')
+        img_B = Image.open(path_B).convert('L')
 
         # 应用transform变换
         src = self.transform(img_A)
@@ -68,8 +65,8 @@ class FundusImageDataset(Dataset):
 if __name__ == "__main__":
     train_dataset = FundusImageDataset(
         root_dir = "data/gray_raw/train",
-        config_path = 'configs/config.yaml',
-        standard_size = (512, 512)
+        mean = 0.0, std = 1.0,
+        standard_size = 512
     )
 
     src, tgt = train_dataset[0]

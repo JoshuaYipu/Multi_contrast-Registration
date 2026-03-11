@@ -8,8 +8,8 @@ training:
   input_size: [512,512]
   base_channels: 8 # 网络宽度。值越大，网络规模越大。
   dataset_path: 'data/gray_raw'
-  mean: 0.3278
-  std: 0.2223
+  mean: 0.293794
+  std: 0.201630
   jl_thresh_mode: "percentile_80" # 可选策略：percentile_80, mean_plus_std, median_plus_mad
   patience: 20
-  min_delta: 1e-3
+  min_delta: 0.001
