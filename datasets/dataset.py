@@ -64,7 +64,7 @@ class FundusImageDataset(Dataset):
     
 if __name__ == "__main__":
     train_dataset = FundusImageDataset(
-        root_dir = "data/gray_raw/train",
+        root_dir = "data/processed/train",
         mean = 0.0, std = 1.0,
         standard_size = 512
     )
