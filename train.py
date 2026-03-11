@@ -36,14 +36,17 @@ def main():
     lr = training_cfg['learning_rate']
     batch_size = training_cfg['batch_size']
     weight_decay = training_cfg['weight_decay']
+
     affine_weight_path = training_cfg['affine_weight_path']
     base_channels = training_cfg['base_channels']
-    input_mode = training_cfg['input_mode']
     input_size = training_cfg['input_size']
     dataset_path = training_cfg['dataset_path']
+
     mean = training_cfg['mean']
     std = training_cfg['std']
+
     jl_thresh_mode = training_cfg['jl_thresh_mode']
+
     patience = training_cfg['patience']
     min_delta = training_cfg['min_delta']
     
@@ -52,12 +55,12 @@ def main():
     train_dataset = FundusImageDataset(
         root_dir = os.path.join(dataset_path, 'train'),
         mean = mean, std = std,
-        standard_size = tuple(input_size)
+        standard_size = input_size
     )
     val_dataset = FundusImageDataset(
         root_dir = os.path.join(dataset_path, 'val'),
         mean = mean, std = std,
-        standard_size = tuple(input_size)
+        standard_size = input_size
     )
     
 
@@ -85,7 +88,6 @@ def main():
         'batch_size': batch_size,
         'weight_decay': weight_decay,
         'base_channels': base_channels,
-        'input_mode': input_mode,
         'input_size': input_size,
         'dataset_path': dataset_path,
         'mean': mean,
@@ -104,8 +106,7 @@ def main():
     # 定义新的网络结构
     model = affine_net.AffineNet(
         base_channels=base_channels,
-        input_mode = input_mode,
-        input_size = input_size
+        input_size = (input_size, input_size)
     )
     model.to(device)
     print(model)
