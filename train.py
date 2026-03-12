@@ -13,7 +13,7 @@ from losses import losses
 from datasets.dataset import FundusImageDataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from scripts import record_info,plot
+from scripts import record_info,plot,visualize
 import sys
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -49,6 +49,7 @@ def main():
 
     patience = training_cfg['patience']
     min_delta = training_cfg['min_delta']
+    vis_interval = training_cfg.get('vis_interval', 5)  # 默认每5个epoch可视化一次
     
 
     # 定义训练集、验证集、测试集，并加载到加载器中
@@ -163,6 +164,18 @@ def main():
             epoch_time = time.time() - epoch_start_time
             print(f"Val Loss:{avg_val_loss:.6f}")
             print(f"Epoch Time:{epoch_time:.2f} seconds")
+
+            # ----------------定期可视化-----------------
+            if (epoch + 1) % vis_interval == 0 or epoch == 0:
+                vis_dir = os.path.join(current_exp_dir, 'visuals')
+                visualize.save_visuals(
+                    model=model,
+                    val_loader=val_loader,
+                    device=device,
+                    epoch=epoch + 1,
+                    output_dir=vis_dir,
+                    num_samples=2  # 可根据需要调整
+                )
 
             # ----------------保存指标到csv-----------------
             with open(metrics_path, 'a', encoding='utf-8') as f:

@@ -4,7 +4,7 @@ from PIL import Image
 
 # 设置原始数据根目录和输出目录（可选：你可以直接覆盖原图或保存到新位置）
 RAW_DATA_ROOT = Path("data/raw")        # 原始数据路径
-OUTPUT_ROOT = Path("data/processed")    # 处理后保存路径（避免覆盖原始数据）
+OUTPUT_ROOT = Path("data/processed_green_channel_inverted_FFA")    # 处理后保存路径（避免覆盖原始数据）
 
 # 目标尺寸
 TARGET_SHORT_SIDE = 512
@@ -32,9 +32,6 @@ def resize_short_side_and_center_crop(image: Image.Image, short_side: int, crop_
     return cropped_img
 
 def process_dataset(split: str):
-    """
-    处理 train / val / test 中的 A 和 B 子文件夹
-    """
     for subfolder in ["A", "B"]:
         input_dir = RAW_DATA_ROOT / split / subfolder
         output_dir = OUTPUT_ROOT / split / subfolder
@@ -42,16 +39,31 @@ def process_dataset(split: str):
 
         print(f"Processing {input_dir} → {output_dir}")
 
-        for img_path in input_dir.glob("*.png"):  # 假设图像是 .png 格式；如为 .jpg 则改 glob("*.jpg")
+        for img_path in input_dir.glob("*.png"):
             try:
                 with Image.open(img_path) as img:
-                    if img.mode != "L":  # 确保是灰度图
-                        img = img.convert("L")
+                    if subfolder == "A":
+                        # A: 眼底彩照 → 提取绿色通道，保持血管为暗色（不反色）
+                        if img.mode == "RGB":
+                            img = img.split()[1]
+                        elif img.mode == "L":
+                            pass  # 已是灰度（可能是绿色通道）
+                        else:
+                            img = img.convert("RGB").split()[1]
+
+                        # ✅ 不反色！保持血管暗色
+
+                    else:  # B: FFA → 转灰度 + 反色，使血管变暗
+                        if img.mode != "L":
+                            img = img.convert("L")
+                        img = Image.eval(img, lambda x: 255 - x)  # 反色，血管变暗
+
                     processed_img = resize_short_side_and_center_crop(
                         img, TARGET_SHORT_SIDE, CROP_SIZE
                     )
                     save_path = output_dir / img_path.name
                     processed_img.save(save_path)
+
             except Exception as e:
                 print(f"Error processing {img_path}: {e}")
 
