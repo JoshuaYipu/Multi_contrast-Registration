@@ -40,7 +40,7 @@ class FundusImageDataset(Dataset):
             transforms.Resize(standard_size),
             transforms.CenterCrop(standard_size),
             transforms.ToTensor(),
-            transforms.Normalize(mean=self.mean, std=self.std)
+            # transforms.Normalize(mean=self.mean, std=self.std)
         ])
 
         

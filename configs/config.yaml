@@ -6,9 +6,10 @@ training:
   affine_weight_path: 'experiments/affine_train'
   input_size: 512
   base_channels: 8 # 网络宽度。值越大，网络规模越大。
-  dataset_path: 'data/processed'
+  dataset_path: 'data/processed_green_channel_inverted_FFA'
   mean: 0.293794
   std: 0.201630
   jl_thresh_mode: "percentile_80" # 可选策略：percentile_80, mean_plus_std, median_plus_mad
   patience: 20
   min_delta: 0.001
+  vis_interval: 5 # 可选项：每多少个epoch进行一次可视化
